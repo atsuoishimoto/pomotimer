@@ -4,6 +4,11 @@ from pymfc import iconbtn, winconst
 
 TIMEOUT = 60*25 # 25 min
 
+APPNAME = u"PomoTimer"
+ICON_POMOTIMER = gdi.Icon(filename=u"pomotimer.ico", cx=16, cy=16)
+ICON_PAUSE = gdi.Icon(filename=u"pomotimer_pause.ico", cx=16, cy=16)
+ICON_RUN = gdi.Icon(filename=u"pomotimer_run.ico", cx=16, cy=16)
+
 def sec_to_str(s):
     h = s//3600
     m = (s-h*3600)//60
@@ -55,7 +60,8 @@ class PomoTimerApp:
         self.started = datetime.datetime.now()
         
     def run(self):
-        self.notifyframe = NotifyFrame()
+        self.notifyframe = wnd.FrameWnd(style=wnd.FrameWnd.STYLE(visible=False))
+        self.notify = Notify(self.notifyframe, ICON_POMOTIMER, APPNAME)
         self.notifyframe.create()
         
         self.pframe = PFrame()
@@ -190,7 +196,7 @@ class PFrame(wnd.FrameWnd):
 
     CONTEXT=True
     ROLE="frame"
-    TITLE = u'PomoTimer'
+    TITLE = APPNAME
     WNDCLASS_BACKGROUNDCOLOR = 0xffffff
     
     _notified = False
@@ -283,7 +289,7 @@ class PFrame(wnd.FrameWnd):
         if not pomotimer.cur or pomotimer.cur.stopped:
             pomotimer.start()
             self.__updateDigits()
-            self.updatebtn()
+            self.__updatebtn()
             self._notified = False
             
     def __onPause(self, wnd, btn):
@@ -293,13 +299,13 @@ class PFrame(wnd.FrameWnd):
             else:
                 pomotimer.cur.resume()
             self.__updateDigits()
-            self.updatebtn()
+            self.__updatebtn()
     
     def __onStop(self, wnd, btn):
         if pomotimer.cur and not pomotimer.cur.stopped:
             pomotimer.cur.stop()
             self.__updateDigits()
-            self.updatebtn()
+            self.__updatebtn()
         
     def __onClose(self, wnd, btn):
         self.showWindow(hide=True)
@@ -308,7 +314,7 @@ class PFrame(wnd.FrameWnd):
     def setVisible(self):
         if self.getHwnd():
             self.__updateDigits()
-            self.updatebtn()
+            self.__updatebtn()
 
             self.enableWindow(False)
             self.showWindow(shownoactivate=True)
@@ -341,7 +347,7 @@ class PFrame(wnd.FrameWnd):
             else:
                 self._digits.ctrl.setColor(0x905000)
         
-    def updatebtn(self):
+    def __updatebtn(self):
         if not self.getHwnd():
             return
 
@@ -351,13 +357,17 @@ class PFrame(wnd.FrameWnd):
             btnchanged |= self._btnpause.setDisabled(True)
             btnchanged |= self._btnpause.pushed(False)
             btnchanged |= self._btnstop.setDisabled(True)
+            pomotimer.notify.setIcon(icon=ICON_POMOTIMER)
         else:
             btnchanged |= self._btnstart.setDisabled(True)
             btnchanged |= self._btnpause.setDisabled(False)
             if pomotimer.cur.paused:
                 btnchanged |= self._btnpause.pushed(True)
+                pomotimer.notify.setIcon(icon=ICON_PAUSE)
             else:
                 btnchanged |= self._btnpause.pushed(False)
+                pomotimer.notify.setIcon(icon=ICON_RUN)
+                
             btnchanged |= self._btnstop.setDisabled(False)
         
         if btnchanged:
@@ -383,22 +393,12 @@ class Notify(traynotify.TrayNotify):
     def onMouseMove(self, msg):
         if pomotimer.cur and not pomotimer.cur.stopped:
             s = sec_to_str(pomotimer.cur.getelapse())
-            self.setIcon(tip=u"PomoTimer - "+s)
+            if pomotimer.cur.paused:
+                self.setIcon(tip="Paused - "+s)
+            else:
+                self.setIcon(tip=APPNAME + " - "+s)
         else:
-            self.setIcon(tip=u"PomoTimer")
-
-class NotifyFrame(wnd.FrameWnd):
-    STYLE=wnd.FrameWnd.STYLE(visible=False)
-    WNDCLASS_CURSOR = gdi.Cursor(arrow=True)
-    
-    def _prepare(self, kwargs):
-        super(NotifyFrame, self)._prepare(kwargs)
-        icon = gdi.Icon(filename=u"pomotimer.ico", cx=16, cy=16)
-        notify = Notify(self, icon, u"pomotimer")
-
-    def wndReleased(self):
-        super(NotifyFrame, self).wndReleased()
-
+            self.setIcon(tip=APPNAME)
 
 def run():
     global pomotimer
