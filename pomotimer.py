@@ -8,6 +8,7 @@ APPNAME = u"PomoTimer"
 ICON_POMOTIMER = gdi.Icon(filename=u"pomotimer.ico", cx=16, cy=16)
 ICON_PAUSE = gdi.Icon(filename=u"pomotimer_pause.ico", cx=16, cy=16)
 ICON_RUN = gdi.Icon(filename=u"pomotimer_run.ico", cx=16, cy=16)
+ICON_TIMEOUT = gdi.Icon(filename=u"pomotimer_timeout.ico", cx=16, cy=16)
 
 CONFIG = """
 [CONFIG]
@@ -500,7 +501,11 @@ class PFrame(wnd.FrameWnd):
                 pomotimer.notify.setIcon(icon=ICON_PAUSE)
             else:
                 btnchanged |= self._btnpause.pushed(False)
-                pomotimer.notify.setIcon(icon=ICON_RUN)
+                
+                if pomotimer.cur.getelapse() >= pomotimer.timeout*60:
+                    pomotimer.notify.setIcon(icon=ICON_TIMEOUT)
+                else:
+                    pomotimer.notify.setIcon(icon=ICON_RUN)
                 
             btnchanged |= self._btnstop.setDisabled(False)
         
