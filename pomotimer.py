@@ -1,13 +1,25 @@
-import datetime, math
+import datetime, math, os, ConfigParser, StringIO, winsound
 from pymfc import app, wnd, traynotify, gdi, menu, metric, layout
-from pymfc import iconbtn, winconst
+from pymfc import iconbtn, winconst, shellapi
 
-TIMEOUT = 60*25 # 25 min
+
 
 APPNAME = u"PomoTimer"
 ICON_POMOTIMER = gdi.Icon(filename=u"pomotimer.ico", cx=16, cy=16)
 ICON_PAUSE = gdi.Icon(filename=u"pomotimer_pause.ico", cx=16, cy=16)
 ICON_RUN = gdi.Icon(filename=u"pomotimer_run.ico", cx=16, cy=16)
+
+CONFIG = """
+[CONFIG]
+minutes = 25
+soundfile =
+"""
+
+CONFIGFILEPATH = os.path.join(
+    shellapi.shGetSpecialFolderPath(None, shellapi.CSIDL.appdata, create=False),
+    u'pomotimer'
+    )
+CONFIGFILENAME = os.path.join(CONFIGFILEPATH, u'pomotimer.config')
 
 def sec_to_str(s):
     h = s//3600
@@ -59,6 +71,25 @@ class PomoTimerApp:
         self.hist = []
         self.started = datetime.datetime.now()
         
+        self.__readconfig()
+        
+    def __readconfig(self):
+        config = self.__loadconfig()
+        self.timeout = config.getint('CONFIG', 'minutes')
+        self.soundfile = unicode(config.get('CONFIG', 'soundfile'), 'utf-8').strip()
+        
+    def __loadconfig(self):
+        config = ConfigParser.SafeConfigParser()
+        config.readfp(StringIO.StringIO(CONFIG))
+        
+        if os.path.exists(CONFIGFILENAME):
+            try:
+                config.read(CONFIGFILENAME)
+            except:
+                # ignore errors
+                pass
+        return config
+    
     def run(self):
         self.notifyframe = wnd.FrameWnd(style=wnd.FrameWnd.STYLE(visible=False))
         self.notify = Notify(self.notifyframe, ICON_POMOTIMER, APPNAME)
@@ -72,6 +103,101 @@ class PomoTimerApp:
     def start(self):
         self.cur = Pomodoro()
         self.hist.append(self.cur)
+
+    def showConfig(self):
+        ret = ConfigDialog().doModal()
+        if ret:
+            self.timeout, self.soundfile = ret
+            config = self.__loadconfig()
+            config.set('CONFIG', 'minutes', str(self.timeout))
+            config.set('CONFIG', 'soundfile', self.soundfile.encode('utf-8'))
+            
+            if not os.path.exists(CONFIGFILEPATH):
+                os.makedirs(CONFIGFILEPATH)
+            with open(CONFIGFILENAME, 'w') as f:
+                config.write(f)
+
+class ConfigDialog(wnd.Dialog):
+    CONTEXT=True
+    TITLE = APPNAME
+
+    def _prepare(self, kwargs):
+        super(ConfigDialog, self)._prepare(kwargs)
+        
+        self._layout = layout.Table(parent=self, adjustparent=True,
+            pos=(10,5), margin_bottom=5, margin_right=10, rowgap=5)
+
+        row = self._layout.addRow()
+        cell = row.addCell()
+        cell.add(u"Pomodoro")
+        cell.add(None)
+
+        cell = row.addCell()
+        cell.add(wnd.NumEdit, title=unicode(pomotimer.timeout), width=10, name="edit")
+        cell.add(u" minutes")
+
+        row = self._layout.addRow()
+        cell = row.addCell()
+        cell.add(u"Sound file")
+        cell.add(None)
+        
+        cell = row.addCell(fillhorz=True)
+        cell.add(wnd.Edit, width=40, title=pomotimer.soundfile, name="soundfilename", extendright=True)
+        cell.add(None)
+        cell.add(wnd.Button, title=u"Browse", name='browse')
+
+        row = self._layout.addRow()
+        cell = row.addCell(colspan=2, alignright=True)
+
+        cell.add(wnd.OkButton, title=u"OK", name='ok')
+        cell.add(None)
+        cell.add(wnd.CancelButton, title=u"Cancel", name='cancel')
+
+        self._layout.ctrls.edit.msglistener.CHANGE = self.__checkNum
+        self._layout.ctrls.browse.msglistener.CLICKED = self.__selectfile
+        self.setDefaultValue(None)
+        
+    def __checkNum(self, msg=None):
+        text = self._layout.ctrls.edit.getText()
+        ret = None
+        try:
+            ret = int(text)
+        except:
+            self._layout.ctrls.ok.enableWindow(False)
+        else:
+            if ret < 1:
+                self._layout.ctrls.ok.enableWindow(False)
+            else:
+                self._layout.ctrls.ok.enableWindow(True)
+
+        return ret
+
+    def __selectfile(self, msg):
+        mediadir = os.path.join(
+            shellapi.shGetSpecialFolderPath(None, shellapi.CSIDL.windows, create=False),
+            u"Media")
+
+        dlg = wnd.FileDialog(
+            title=u'Select sound file', initdir=mediadir, 
+            filter=((u'wav file', ('*.wav',)),), nochangedir=True, readonly=True, 
+            filemustexist=True)
+        
+        ret = dlg.openDlg()
+        if ret:
+            self._layout.ctrls.soundfilename.setText(ret[0])
+        
+
+    def onOk(self, msg=None):
+        num = self.__checkNum()
+        filename = self._layout.ctrls.soundfilename.getText().strip()
+        
+        self.setResultValue((num, filename))
+        self.endDialog(self.IDOK)
+
+    def onCancel(self, msg=None):
+        self.setResultValue(None)
+        self.endDialog(self.IDCANCEL)
+
 
 class Chart(wnd.Wnd):
     WNDCLASS_BACKGROUNDCOLOR = 0xffffff
@@ -285,10 +411,14 @@ class PFrame(wnd.FrameWnd):
             self._chart.ctrl.invalidateRect(None, erase=False)
 
         if not self._notified and pomotimer.cur and not pomotimer.cur.stopped:
-            if pomotimer.cur.getelapse() >= TIMEOUT:
+            if pomotimer.cur.getelapse() >= pomotimer.timeout*60:
                 self.setVisible()
+                if pomotimer.soundfile:
+                    winsound.PlaySound(pomotimer.soundfile, 
+                        winsound.SND_FILENAME | winsound.SND_ASYNC)
+
                 self._notified = True
-                
+
     def __onStart(self, wnd, btn):
         if not pomotimer.cur or pomotimer.cur.stopped:
             pomotimer.start()
@@ -346,7 +476,7 @@ class PFrame(wnd.FrameWnd):
         elif pomotimer.cur.paused:
             self._digits.ctrl.setColor(0x808080)
         else:
-            if pomotimer.cur.getelapse() >= TIMEOUT:
+            if pomotimer.cur.getelapse() >= pomotimer.timeout*60:
                 self._digits.ctrl.setColor(0x0050ff)
             else:
                 self._digits.ctrl.setColor(0x905000)
@@ -380,15 +510,21 @@ class PFrame(wnd.FrameWnd):
 class Notify(traynotify.TrayNotify):
     def onRBtnUp(self, msg):
         popup = menu.PopupMenu(u"popup")
+        popup.append(menu.MenuItem(u"config", u"Config"))
         popup.append(menu.MenuItem(u"quit", u"Quit"))
         popup.create()
+        
         msg.wnd.setForegroundWindow()
         pos = msg.wnd.getCursorPos()
         pos =msg.wnd.clientToScreen(pos)
         item = popup.trackPopup(pos, msg.wnd, nonotify=True, returncmd=True)
+        
         if item:
-            pomotimer.pframe.destroy()
-            pomotimer.notifyframe.destroy()
+            if item.menuid == u"quit":
+                pomotimer.pframe.destroy()
+                pomotimer.notifyframe.destroy()
+            elif item.menuid == u"config":
+                pomotimer.showConfig()
 
     def onLBtnUp(self, msg):
         pomotimer.pframe.setForegroundWindow()
