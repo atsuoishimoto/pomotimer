@@ -328,9 +328,10 @@ class PFrame(wnd.FrameWnd):
     CONTEXT=True
     ROLE="frame"
     TITLE = APPNAME
-    WNDCLASS_BACKGROUNDCOLOR = 0xffffff
+    WNDCLASS_BACKGROUNDCOLOR = 0xf08080
     
     _notified = False
+    BORDERPEN = gdi.Pen(color=0x000000, width=1)
     
     def _prepare(self, kwargs):
         super(PFrame, self)._prepare(kwargs)
@@ -339,7 +340,7 @@ class PFrame(wnd.FrameWnd):
         self._size = (300, 200)
         self._pos = (fullscreen[0] - self._size[0]-5, fullscreen[1] - self._size[1]-5)
         
-        self._layout = layout.Table(parent=self, pos=(1, 1), margin_right=1, margin_bottom=1,
+        self._layout = layout.Table(parent=self, pos=(2, 2), margin_right=2, margin_bottom=2,
             extendright=True, extendbottom=True, rowgap=0)
 
         row = self._layout.addRow(fillvert=True)
@@ -352,7 +353,6 @@ class PFrame(wnd.FrameWnd):
         
         row = self._layout.addRow()
         cell = row.addCell()
-        cell.add(None, height=0.5)
 
         self._buttons = iconbtn.HorzIconButtonBar(parent=self)
         self._btnstart = iconbtn.IconButton(
@@ -381,6 +381,7 @@ class PFrame(wnd.FrameWnd):
         cell.add(self._buttons, height=1.4, extendright=True)
         
         self.msglistener.CREATE = self.__onCreate
+        self.msglistener.SIZE = self.__onSize
         self.msgproc.CLOSE = self.__onClose
         self.msglistener.ACTIVATE = self.__onActivate
         self.msgproc.NCHITTEST = self.__onNCHitTest
@@ -389,9 +390,25 @@ class PFrame(wnd.FrameWnd):
         super(PFrame, self).wndReleased()
         self._layout = None
         
+    def _updatergn(self):
+        l, t, r, b = self.getClientRect()
+        wnddc = gdi.WindowDC(self)
+
+        dc = wnddc.createCompatibleDC()
+        bmp = dc.createCompatibleBitmap(r-l, b-t)
+        orgbmp = dc.selectObject(bmp)
+        dc.selectObject(self.BORDERPEN)
+       
+        self._rgn = gdi.RoundRectRgn((l, t, r+1, b+1), (5, 5))
+        self.setWindowRgn(self._rgn)
+
     def __onCreate(self, msg):
         wnd.TimerProc(1000, self.__onTimer)
-    
+        self._updatergn()
+        
+    def __onSize(self, msg):
+        self._updatergn()
+        
     def __onClose(self, msg):
         self.showWindow(hide=True)
         
