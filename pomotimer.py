@@ -76,9 +76,12 @@ class PomoTimerApp:
 class Chart(wnd.Wnd):
     WNDCLASS_BACKGROUNDCOLOR = 0xffffff
     WNDCLASS_CURSOR = gdi.Cursor(arrow=True)
-    PEN = gdi.Pen(color=0xf08080, width=1)
-    PIEBRUSH = gdi.Brush(color=0x0050ff)
+
     CHARTBRUSH = gdi.Brush(color=0x905000)
+    CHARTPEN = gdi.Pen(color=0xe0e0e0)
+
+    PIEBRUSH = gdi.Brush(color=0x0050ff)
+    PIEPEN = gdi.Pen(color=0xf08080, width=0)
     
     def _prepare(self, kwargs):
         super(Chart, self)._prepare(kwargs)
@@ -131,12 +134,13 @@ class Chart(wnd.Wnd):
             orgbmp = pdc.selectObject(bmp)
 
             pdc.fillSolidRect((0, 0, w, h), self.WNDCLASS_BACKGROUNDCOLOR)
-            pdc.selectObject(self.PEN)
+            pdc.selectObject(self.CHARTPEN)
             pdc.selectObject(self.CHARTBRUSH)
 
             circle = (w/2-r, h/2-r, w/2+r, h/2+r)
             pdc.ellipse(circle)
 
+            pdc.selectObject(self.PIEPEN)
             pdc.selectObject(self.PIEBRUSH)
             for f, t in self.__iterPie():
                 f = self.__sec2rad(f)
@@ -383,7 +387,8 @@ class Notify(traynotify.TrayNotify):
         pos =msg.wnd.clientToScreen(pos)
         item = popup.trackPopup(pos, msg.wnd, nonotify=True, returncmd=True)
         if item:
-            app.quit(0)
+            pomotimer.pframe.destroy()
+            pomotimer.notifyframe.destroy()
 
     def onLBtnUp(self, msg):
         pomotimer.pframe.setForegroundWindow()
