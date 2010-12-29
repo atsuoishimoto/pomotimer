@@ -55,7 +55,7 @@ class Target:
         self.__dict__.update(kw)
         # for the versioninfo resources
         self.script = "pomotimer.py"
-        self.version = "0.0.1"
+        self.version = "0.0.2"
         self.description = "pomotimer"
         self.company_name = "Atsuo Ishimoto"
         self.name = "Pomodoro Timer"
@@ -64,13 +64,17 @@ class Target:
 
 
 setup(name='pomotimer',
-      version="0.0.1",
+      version="0.0.2",
       data_files=[
           ('', 
               ['README.TXT', 'COPYING',
                'pomotimer.ico', 'close.ico', 'pause.ico', 
-               'start.ico', 'stop.ico']),
+               'pomotimer_pause.ico', 'pomotimer_run.ico', 
+               'pomotimer_timeout.ico', 'start.ico', 'stop.ico',
+               ]),
       ],
       windows = [Target()],
       options = {'py2exe':options}
 )
+
+

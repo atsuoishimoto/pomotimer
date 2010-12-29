@@ -1,5 +1,5 @@
-PomoTimer 0.0.1 - 2010/12/28
-============================
+PomoTimer
+=========
 
 Copyright (C) 2010
 Atsuo Ishimoto
@@ -30,4 +30,18 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 For details see file "COPYING".
+
+History
+-------
+
+version 0.0.2 - 2010/12/29
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+- Play .wav file on timeout.
+- Change Pomodoro time.
+- Display timer status with tray icon.
+
+version 0.0.1 - 2010/12/28
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+Initial relase.
+
 
