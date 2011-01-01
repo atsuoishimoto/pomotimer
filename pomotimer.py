@@ -530,24 +530,31 @@ class PFrame(wnd.FrameWnd):
             self._buttons.layout()
 
 class Notify(traynotify.TrayNotify):
+    __running = False
     def onRBtnUp(self, msg):
-        popup = menu.PopupMenu(u"popup")
-        popup.append(menu.MenuItem(u"config", u"Config"))
-        popup.append(menu.MenuItem(u"quit", u"Quit"))
-        popup.create()
-        
-        msg.wnd.setForegroundWindow()
-        pos = msg.wnd.getCursorPos()
-        pos =msg.wnd.clientToScreen(pos)
-        item = popup.trackPopup(pos, msg.wnd, nonotify=True, returncmd=True)
-        
-        if item:
-            if item.menuid == u"quit":
-                pomotimer.pframe.destroy()
-                pomotimer.notifyframe.destroy()
-            elif item.menuid == u"config":
-                pomotimer.showConfig()
-
+        if self.__running:
+            return
+        self.__running = True
+        try:
+            popup = menu.PopupMenu(u"popup")
+            popup.append(menu.MenuItem(u"config", u"Config"))
+            popup.append(menu.MenuItem(u"quit", u"Quit"))
+            popup.create()
+            
+            msg.wnd.setForegroundWindow()
+            pos = msg.wnd.getCursorPos()
+            pos =msg.wnd.clientToScreen(pos)
+            item = popup.trackPopup(pos, msg.wnd, nonotify=True, returncmd=True)
+            
+            if item:
+                if item.menuid == u"quit":
+                    pomotimer.pframe.destroy()
+                    pomotimer.notifyframe.destroy()
+                elif item.menuid == u"config":
+                    pomotimer.showConfig()
+        finally:
+            self.__running = False
+            
     def onLBtnUp(self, msg):
         pomotimer.pframe.setForegroundWindow()
         pomotimer.pframe.setVisible()
