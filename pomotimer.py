@@ -302,23 +302,34 @@ class Digit(wnd.Wnd):
     
     def __onPaint(self, msg):
         dc = gdi.PaintDC(msg.wnd)
-        dc.setTextColor(self._color)
-        dc.selectObject(self.FONT)
         try:
-            rc = self.getClientRect()
-            dc.drawText(self._text, rc, noprefix=True, singleline=True, center=True, vcenter=True)
+
+            l, t, r, b = self.getClientRect()
+            w = r-l
+            h = b-t
+
+            pdc = dc.createCompatibleDC()
+            bmp = dc.createCompatibleBitmap(w, h)
+            orgbmp = pdc.selectObject(bmp)
+            
+            pdc.fillSolidRect((l, t, r, b), self.WNDCLASS_BACKGROUNDCOLOR)
+            pdc.setTextColor(self._color)
+            pdc.selectObject(self.FONT)
+
+            pdc.drawText(self._text, (l, t, r, b), noprefix=True, singleline=True, center=True, vcenter=True)
+            dc.bitBlt((0, 0, w, h), pdc, (0, 0), srccopy=True)
         finally:
             dc.endPaint()
     
     def setText(self, text):
         if text != self._text:
             self._text = text
-            self.invalidateRect(None, erase=True)
+            self.invalidateRect(None, erase=False)
     
     def setColor(self, color):
         if color != self._color:
             self._color = color
-            self.invalidateRect(None, erase=True)
+            self.invalidateRect(None, erase=False)
         
 class PFrame(wnd.FrameWnd):
     STYLE = wnd.FrameWnd.STYLE(visible=False, popup=True, overlapped=False, 
